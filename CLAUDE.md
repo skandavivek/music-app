@@ -27,9 +27,11 @@ The blog is cumulative — never rewrite old entries, only append new ones.
 
 ## Session traces
 `claude-traces/` contains full transcripts of each Claude session.
-**At the end of every session, save the conversation to `claude-traces/session-N.md`** (increment N).
+**When the user says "wrap up", "end the session", "save the trace", or similar — write the conversation to `claude-traces/session-N.md`** (increment N from the last file in that folder).
 
 Each trace file should capture: user messages, assistant responses, key decisions, commands run, and errors hit. Write it as a readable Q&A — not raw JSON. Future sessions can read these to understand the full history of decisions made.
+
+Claude cannot detect session end automatically — this must be user-triggered.
 
 ## Current state
 - Expo SDK 54, React Native 0.81.5
