@@ -25,6 +25,12 @@ Each entry should follow this format:
 
 The blog is cumulative — never rewrite old entries, only append new ones.
 
+## Session traces
+`claude-traces/` contains full transcripts of each Claude session.
+**At the end of every session, save the conversation to `claude-traces/session-N.md`** (increment N).
+
+Each trace file should capture: user messages, assistant responses, key decisions, commands run, and errors hit. Write it as a readable Q&A — not raw JSON. Future sessions can read these to understand the full history of decisions made.
+
 ## Current state
 - Expo SDK 54, React Native 0.81.5
 - expo-av for audio (programmatic WAV tone generation)
