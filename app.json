@@ -7,7 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.skandavivek.musicapp",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Used to control the metronome and tuner with your voice.",
+        "NSMicrophoneUsageDescription": "Used to listen to your voice commands."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,6 +25,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-speech-recognition"
+    ]
   }
 }

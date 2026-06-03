@@ -6,6 +6,7 @@
     "expo": "~54.0.0",
     "expo-av": "~16.0.8",
     "expo-file-system": "~19.0.23",
+    "expo-speech-recognition": "^56.0.0",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
