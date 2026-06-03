@@ -12,6 +12,7 @@ export function useMetronome() {
   const bpmRef = useRef(bpm);
   const clickUriRef = useRef<string | null>(null);
   const tapTimesRef = useRef<number[]>([]);
+  const scheduledBeatsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
 
@@ -35,12 +36,16 @@ export function useMetronome() {
     const now = Date.now();
     const lookahead = 100;
     while (nextBeatRef.current < now + lookahead) {
-      const delay = Math.max(0, nextBeatRef.current - now);
-      const beatTime = nextBeatRef.current;
-      if (beatTime >= now - 25) {
+      const beatTime = Math.round(nextBeatRef.current);
+      if (!scheduledBeatsRef.current.has(beatTime)) {
+        scheduledBeatsRef.current.add(beatTime);
+        const delay = Math.max(0, beatTime - now);
         setTimeout(() => {
           playClick();
           setBeat(b => b + 1);
+          // prune old entries so the set doesn't grow forever
+          const cutoff = Date.now() - 2000;
+          scheduledBeatsRef.current.forEach(t => { if (t < cutoff) scheduledBeatsRef.current.delete(t); });
         }, delay);
       }
       nextBeatRef.current += (60 / bpmRef.current) * 1000;
@@ -56,6 +61,7 @@ export function useMetronome() {
   const stop = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = null;
+    scheduledBeatsRef.current.clear();
     setIsPlaying(false);
     setBeat(0);
   }, []);
