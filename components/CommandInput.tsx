@@ -3,10 +3,13 @@ import {
   View, TextInput, TouchableOpacity, Text, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+let ExpoSpeechRecognitionModule: any = null;
+let useSpeechRecognitionEvent: any = () => {};
+try {
+  const mod = require('expo-speech-recognition');
+  ExpoSpeechRecognitionModule = mod.ExpoSpeechRecognitionModule;
+  useSpeechRecognitionEvent = mod.useSpeechRecognitionEvent;
+} catch {}
 import { colors, spacing } from '../constants/theme';
 
 interface Props {
@@ -24,7 +27,11 @@ export function CommandInput({ onSubmit, loading, error, placeholder }: Props) {
   const pulseAnim = useState(new Animated.Value(1))[0];
 
   useEffect(() => {
-    setSpeechAvailable(ExpoSpeechRecognitionModule.isRecognitionAvailable());
+    try {
+      setSpeechAvailable(ExpoSpeechRecognitionModule?.isRecognitionAvailable() ?? false);
+    } catch {
+      setSpeechAvailable(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -44,7 +51,7 @@ export function CommandInput({ onSubmit, loading, error, placeholder }: Props) {
 
   useSpeechRecognitionEvent('start', () => setListening(true));
   useSpeechRecognitionEvent('end', () => setListening(false));
-  useSpeechRecognitionEvent('result', (event) => {
+  useSpeechRecognitionEvent('result', (event: any) => {
     const t = event.results[0]?.transcript ?? '';
     setTranscript(t);
     if (event.isFinal && t) {

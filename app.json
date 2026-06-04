@@ -11,7 +11,8 @@
       "bundleIdentifier": "com.skandavivek.musicapp",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Used to control the metronome and tuner with your voice.",
-        "NSMicrophoneUsageDescription": "Used to listen to your voice commands."
+        "NSMicrophoneUsageDescription": "Used to listen to your voice commands.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -21,13 +22,21 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-speech-recognition"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0db857af-1303-4173-b077-32bf3c26e295"
+      }
+    }
   }
 }
