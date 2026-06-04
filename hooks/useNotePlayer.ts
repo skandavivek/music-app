@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Audio } from 'expo-av';
+import { createAudioPlayer } from 'expo-audio';
 import { NOTE_NAMES, NoteName, noteFrequency } from '../lib/notes';
 import { getNoteUri } from '../lib/audioUtils';
 
@@ -18,14 +18,15 @@ export function useNotePlayer() {
       const freq = noteFrequency(n, o);
       const key = `${n}_${o}`.replace('#', 's');
       const uri = await getNoteUri(freq, key);
-      const { sound } = await Audio.Sound.createAsync({ uri });
-      await sound.playAsync();
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
+      const player = createAudioPlayer({ uri });
+      player.play();
+      const check = setInterval(() => {
+        if (!player.playing) {
+          clearInterval(check);
+          player.remove();
           setIsPlaying(false);
         }
-      });
+      }, 100);
     } catch {
       setIsPlaying(false);
     }

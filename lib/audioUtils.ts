@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 
 function writeString(view: DataView, offset: number, str: string) {
@@ -27,12 +27,12 @@ function buildWav(samples: Float32Array, sampleRate = 44100): ArrayBuffer {
   writeString(view, 8, 'WAVE');
   writeString(view, 12, 'fmt ');
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);   // PCM
-  view.setUint16(22, 1, true);   // mono
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true); // byte rate
-  view.setUint16(32, 2, true);   // block align
-  view.setUint16(34, 16, true);  // bits per sample
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
   writeString(view, 36, 'data');
   view.setUint32(40, numSamples * 2, true);
 
@@ -46,13 +46,11 @@ function buildWav(samples: Float32Array, sampleRate = 44100): ArrayBuffer {
 export function generateTone(frequency: number, duration = 1.5, sampleRate = 44100): ArrayBuffer {
   const numSamples = Math.floor(sampleRate * duration);
   const samples = new Float32Array(numSamples);
-  const fadeMs = 20;
-  const fadeSamples = Math.floor((fadeMs / 1000) * sampleRate);
+  const fadeSamples = Math.floor(0.02 * sampleRate);
 
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
     let amp = 0.7 * Math.sin(2 * Math.PI * frequency * t);
-    // fade in/out to avoid clicks
     if (i < fadeSamples) amp *= i / fadeSamples;
     if (i > numSamples - fadeSamples) amp *= (numSamples - i) / fadeSamples;
     samples[i] = amp;
@@ -61,22 +59,18 @@ export function generateTone(frequency: number, duration = 1.5, sampleRate = 441
 }
 
 export function generateClick(sampleRate = 44100): ArrayBuffer {
-  const duration = 0.04;
-  const numSamples = Math.floor(sampleRate * duration);
+  const numSamples = Math.floor(sampleRate * 0.04);
   const samples = new Float32Array(numSamples);
-
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
-    const decay = Math.exp(-t * 80);
-    samples[i] = 0.9 * Math.sin(2 * Math.PI * 1200 * t) * decay;
+    samples[i] = 0.9 * Math.sin(2 * Math.PI * 1200 * t) * Math.exp(-t * 80);
   }
   return buildWav(samples, sampleRate);
 }
 
 async function wavToFileUri(wav: ArrayBuffer, filename: string): Promise<string> {
   const uri = FileSystem.cacheDirectory + filename;
-  const base64 = arrayBufferToBase64(wav);
-  await FileSystem.writeAsStringAsync(uri, base64, {
+  await FileSystem.writeAsStringAsync(uri, arrayBufferToBase64(wav), {
     encoding: FileSystem.EncodingType.Base64,
   });
   return uri;
@@ -85,29 +79,29 @@ async function wavToFileUri(wav: ArrayBuffer, filename: string): Promise<string>
 let clickUri: string | null = null;
 const noteUriCache: Record<string, string> = {};
 
+export async function initAudio() {
+  await setAudioModeAsync({ playsInSilentMode: true });
+}
+
 export async function getClickUri(): Promise<string> {
-  if (!clickUri) {
-    const wav = generateClick();
-    clickUri = await wavToFileUri(wav, 'metronome_click.wav');
-  }
+  if (!clickUri) clickUri = await wavToFileUri(generateClick(), 'metronome_click.wav');
   return clickUri;
 }
 
 export async function getNoteUri(frequency: number, key: string): Promise<string> {
-  if (!noteUriCache[key]) {
-    const wav = generateTone(frequency);
-    noteUriCache[key] = await wavToFileUri(wav, `note_${key}.wav`);
-  }
+  if (!noteUriCache[key])
+    noteUriCache[key] = await wavToFileUri(generateTone(frequency), `note_${key}.wav`);
   return noteUriCache[key];
 }
 
-export async function playSound(uri: string): Promise<Audio.Sound> {
-  const { sound } = await Audio.Sound.createAsync({ uri });
-  await sound.playAsync();
-  sound.setOnPlaybackStatusUpdate((status) => {
-    if (status.isLoaded && status.didJustFinish) {
-      sound.unloadAsync();
+export async function playSound(uri: string): Promise<void> {
+  const player = createAudioPlayer({ uri });
+  player.play();
+  // poll for completion then release
+  const check = setInterval(() => {
+    if (!player.playing) {
+      clearInterval(check);
+      player.remove();
     }
-  });
-  return sound;
+  }, 100);
 }

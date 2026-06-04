@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { getClickUri } from '../lib/audioUtils';
 
 export function useMetronome() {
@@ -17,18 +17,18 @@ export function useMetronome() {
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
 
   useEffect(() => {
-    Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+    setAudioModeAsync({ playsInSilentMode: true });
     getClickUri().then(uri => { clickUriRef.current = uri; });
   }, []);
 
-  const playClick = useCallback(async () => {
+  const playClick = useCallback(() => {
     if (!clickUriRef.current) return;
     try {
-      const { sound } = await Audio.Sound.createAsync({ uri: clickUriRef.current });
-      await sound.playAsync();
-      sound.setOnPlaybackStatusUpdate((s) => {
-        if (s.isLoaded && s.didJustFinish) sound.unloadAsync();
-      });
+      const player = createAudioPlayer({ uri: clickUriRef.current });
+      player.play();
+      const check = setInterval(() => {
+        if (!player.playing) { clearInterval(check); player.remove(); }
+      }, 50);
     } catch {}
   }, []);
 
