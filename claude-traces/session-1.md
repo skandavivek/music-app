@@ -1,5 +1,5 @@
 # Session 1 — Full Transcript
-**Date:** 2026-05-31
+**Dates:** 2026-05-31 → 2026-06-03
 **Model:** Claude Sonnet 4.6
 
 ---
@@ -177,3 +177,131 @@ Confirmed .env (containing API key) was gitignored before committing.
 - `BLOG.md` — developer blog
 - `CLAUDE.md` — session instructions for future Claude instances
 - `.env.example`
+
+---
+
+## Part 2 — 2026-06-03: Voice input, EAS build, SDK chaos
+
+---
+
+**User:** ok, the metronome seems ok, though some slight fast beats. The claude commands also work
+
+**Claude:** Diagnosed double-scheduling. The lookahead scheduler fires every 25ms and could schedule the same beat twice if it ticked within the 100ms lookahead window twice. Fixed by tracking beat timestamps in a `Set<number>` — if a beat time is already in the set, skip it. Clear set on stop.
+
+---
+
+**User:** now lets add the real voice input and EAS build
+
+**Claude:**
+1. Installed `expo-speech-recognition` — auto-registered config plugin
+2. Updated `app.json` with bundle ID `com.skandavivek.musicapp` + mic/speech permissions
+3. Rewrote `CommandInput.tsx` — mic button with pulsing animation, live transcript display, auto-submits on `isFinal`, text fallback if speech unavailable
+4. Created `eas.json` with development/preview/production profiles
+5. Installed `expo-dev-client`
+
+---
+
+**User:** eas build: You don't have any registered devices yet
+
+**Claude:** Type Y → choose QR/URL option → open in Safari on iPhone → installs MDM profile to register UDID → enter iPhone passcode (not Apple ID password).
+
+---
+
+**User:** Authentication with Apple Developer Portal failed — not registered as Apple Developer
+
+**Claude:** Two tiers: free registration vs $99/year. Needed free registration at developer.apple.com/register first. Also check App Store Connect for pending agreement banners.
+
+---
+
+**User:** [Apple account now works, build succeeded, QR code shown]
+
+**Claude:** Install via Safari (not Chrome). After install: Settings → General → VPN & Device Management → Trust certificate.
+
+---
+
+**User:** requires developer mode to run
+
+**Claude:** Settings → Privacy & Security → Developer Mode → On → restart.
+
+---
+
+**User:** no dev servers found
+
+**Claude:** Run `npx expo start --dev-client --tunnel`. Use `exp+music-app://` URL from terminal if auto-connect fails.
+
+---
+
+**User:** ERROR: Cannot find native module 'ExpoSpeechRecognition'
+
+**Claude:** Root cause: `expo-speech-recognition@56.0.0` compiled against SDK 56's `expo-modules-core`, but project was on SDK 54 (expo-modules-core 3.x). Module compiled against wrong native base.
+
+Two fixes:
+1. Wrapped import in try/catch so app falls back to text instead of crashing
+2. Upgraded to SDK 56 — we have a dev build now, no longer need Expo Go compatibility
+
+---
+
+**User:** EAS build failed: 'ExpoModulesCore/EXEventEmitter.h' file not found, could not build EXAV
+
+**Claude:** `expo-av` was removed entirely in SDK 56 — split into `expo-audio` + `expo-video`. The old EXAV CocoaPod referenced `EXEventEmitter.h` which was deleted from expo-modules-core in SDK 56.
+
+Migration from expo-av → expo-audio:
+```typescript
+// Old (expo-av)
+const { sound } = await Audio.Sound.createAsync({ uri });
+await sound.playAsync();
+sound.setOnPlaybackStatusUpdate(s => {
+  if (s.isLoaded && s.didJustFinish) sound.unloadAsync();
+});
+
+// New (expo-audio)
+const player = createAudioPlayer({ uri });
+player.play();
+const check = setInterval(() => {
+  if (!player.playing) { clearInterval(check); player.remove(); }
+}, 50);
+```
+
+Updated: `audioUtils.ts`, `useMetronome.ts`, `useNotePlayer.ts`. Removed expo-av from package.json.
+
+New EAS build triggered.
+
+---
+
+## Full SDK version chain — the whole painful journey
+
+```
+SDK 56 (scaffolded by create-expo-app)
+  ↓ Expo Go on App Store only supports SDK 54
+SDK 54 (downgraded)
+  ↓ Wrong RN version (0.76 vs required 0.81.5) → TurboModule crash
+  ↓ Wrong package versions → npx expo install --fix
+  ↓ expo-file-system 19.x moved classic API to /legacy again
+  ↓ Splash screen stuck (SDK 50+ requires SplashScreen.hideAsync())
+  ↓ expo-speech-recognition@56 incompatible with SDK 54 expo-modules-core
+SDK 56 (upgraded back — dev build means no Expo Go needed)
+  ↓ expo-av removed in SDK 56 → EXEventEmitter.h not found
+expo-audio (replacement for expo-av in SDK 56)
+✓ Build compiling
+```
+
+## Additional key decisions (Part 2)
+
+| Decision | Reason |
+|---|---|
+| Upgrade SDK 54 → 56 for voice | expo-speech-recognition@56 needs expo-modules-core from SDK 56 |
+| Replace expo-av with expo-audio | expo-av removed from SDK 56; EXAV pod references deleted header |
+| Wrap speech module in try/catch | Graceful fallback to text when native module unavailable |
+| Set-based beat dedup in metronome | Prevents double-scheduling when scheduler fires twice in lookahead window |
+| `playsInSilentMode: true` | Audio plays even when iPhone is on silent/vibrate |
+
+## Additional files changed (Part 2)
+- `hooks/useMetronome.ts` — double-scheduling fix + expo-av → expo-audio
+- `hooks/useNotePlayer.ts` — expo-av → expo-audio
+- `components/CommandInput.tsx` — full voice UI + graceful fallback
+- `lib/audioUtils.ts` — expo-av → expo-audio migration
+- `app.json` — bundle ID, permissions, EAS project ID
+- `eas.json` — EAS build profiles
+- `README.md` — full architecture + setup docs
+- `BLOG.md` — developer blog with pain points
+- `CLAUDE.md` — session trace + blog instructions

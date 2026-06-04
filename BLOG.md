@@ -210,3 +210,28 @@ Scan the QR code with Expo Go (SDK 54 required).
 - Verify app fully renders and audio works on device
 - Add voice input (requires EAS dev build with expo-speech-recognition)
 - Add chromatic tuner (mic input → pitch detection via FFT)
+
+---
+
+## Session 1 (cont.) — 2026-06-03: Voice input, EAS build, SDK chain of pain
+
+### What we built / changed
+- Metronome double-scheduling fix — Set-based beat dedup in lookahead scheduler
+- Full voice input UI — mic button with pulse animation, live transcript, auto-submit
+- EAS build setup — eas.json, expo-dev-client, bundle ID, permissions
+- Apple Developer account setup — device UDID registration, certificate trust, developer mode
+- expo-audio migration — expo-av removed in SDK 56, rewrote audio playback in all three files
+- README.md with full architecture docs
+
+### Pain points & fixes
+- `expo-speech-recognition@56` incompatible with SDK 54 expo-modules-core → upgraded back to SDK 56 (dev build means no Expo Go needed anymore)
+- `expo-av` removed in SDK 56 → `EXEventEmitter.h` not found in Xcode build → migrated to `expo-audio` with `createAudioPlayer` + polling pattern
+- Apple Developer account takes 24-48h to activate after payment + must accept App Store Connect agreements before EAS auth works
+- Device registration flow: EAS → Safari on iPhone → MDM profile install → iPhone passcode (not Apple ID)
+- Developer Mode required on iPhone for dev builds: Settings → Privacy & Security → Developer Mode
+
+### What's next
+- Verify new EAS build (SDK 56 + expo-audio + expo-speech-recognition) works end to end
+- Test voice input with mic button
+- Polish UI, add haptics, time signatures
+- App Store submission prep
