@@ -4,7 +4,7 @@ export type AppAction =
   | { action: 'toggle_play' }
   | { action: 'set_note'; note: string; octave: number }
   | { action: 'play_note' }
-  | { action: 'tap_tempo' }
+  | { action: 'set_time_sig'; num: number; den: 4 | 8 }
   | { action: 'unknown' };
 
 const SYSTEM_PROMPT = `You are a music app voice command parser. Convert the user's text to a JSON action.
@@ -16,8 +16,12 @@ Available actions:
 {"action":"toggle_play"}                      start or stop the metronome
 {"action":"set_note","note":"X","octave":N}   note is C/C#/D/D#/E/F/F#/G/G#/A/A#/B, octave 1-7
 {"action":"play_note"}                        play the currently selected note
-{"action":"tap_tempo"}                        use tap tempo
+{"action":"set_time_sig","num":N,"den":D}     set time signature, num 1-6, den must be 4 or 8
 {"action":"unknown"}                          cannot parse
+
+NOTE NAMES are always single letters A B C D E F G (plus sharps/flats).
+When the user says a single letter or asks for a note by letter, treat it as a note name even if
+the letter "a" looks like an article. Context: "give me an a" means note A, not the word "a".
 
 Examples:
 "set bpm to 120" -> {"action":"set_bpm","value":120}
@@ -27,23 +31,37 @@ Examples:
 "start" -> {"action":"toggle_play"}
 "stop" -> {"action":"toggle_play"}
 "give me a C" -> {"action":"set_note","note":"C","octave":4}
-"play A flat" -> {"action":"set_note","note":"G#","octave":4}
+"give me an A" -> {"action":"set_note","note":"A","octave":4}
+"give me an a" -> {"action":"set_note","note":"A","octave":4}
+"play a" -> {"action":"set_note","note":"A","octave":4}
+"play b" -> {"action":"set_note","note":"B","octave":4}
+"play e" -> {"action":"set_note","note":"E","octave":4}
+"note a" -> {"action":"set_note","note":"A","octave":4}
+"A 440" -> {"action":"set_note","note":"A","octave":4}
+"play A flat" -> {"action":"set_note","note":"Ab","octave":4}
+"A flat" -> {"action":"set_note","note":"Ab","octave":4}
 "A sharp 3" -> {"action":"set_note","note":"A#","octave":3}
-"play it" -> {"action":"play_note"}`;
+"B flat" -> {"action":"set_note","note":"Bb","octave":4}
+"play it" -> {"action":"play_note"}
+"three four" -> {"action":"set_time_sig","num":3,"den":4}
+"six eight" -> {"action":"set_time_sig","num":6,"den":8}
+"waltz time" -> {"action":"set_time_sig","num":3,"den":4}
+"five four" -> {"action":"set_time_sig","num":5,"den":4}
+"compound meter" -> {"action":"set_time_sig","num":6,"den":8}
+
+For flat notes: map to the equivalent sharp. A flat = G#, B flat = A#, D flat = C#, E flat = D#, G flat = F#.`;
 
 export type ParseResult =
   | { ok: true; action: AppAction }
   | { ok: false; error: string };
 
-export async function parseCommand(text: string, apiKey: string): Promise<ParseResult> {
+export async function parseCommand(text: string): Promise<ParseResult> {
   let response: Response;
   try {
-    response = await fetch('https://api.anthropic.com/v1/messages', {
+    response = await fetch('https://yellow-king-5c2b.skandavivek.workers.dev', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',

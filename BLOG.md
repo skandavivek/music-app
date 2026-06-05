@@ -235,3 +235,63 @@ Scan the QR code with Expo Go (SDK 54 required).
 - Test voice input with mic button
 - Polish UI, add haptics, time signatures
 - App Store submission prep
+
+---
+
+## Session 2 — Voice UX, time signatures, and metronome timing deep dive
+**Date:** 2026-06-04
+
+### What we built / changed
+- **Voice auto-submit**: mic button now auto-submits when speech ends — no "Go" button needed. Fixed by using a `transcriptRef` so the `end` event handler sees the latest transcript even across closure boundaries. Also removed the "Go" button entirely (keyboard Enter still works for typed commands).
+- **Time signatures**: added 1/4–6/4 and 1/8–6/8 selectors. /8 time halves the beat interval. Accent click on beat 1. Beat indicator dots show current position in the measure.
+- **Auto-play on voice**: any voice command on the metronome screen (set BPM, adjust BPM, set time sig) auto-starts the metronome if not already playing. Same for tuner: `set_note` now immediately plays the note — no extra "play it" command needed.
+- **Claude prompt improvements**: added explicit disambiguation for note "A" vs. article "a"; flat-to-sharp mappings; more note name examples.
+- **Tone duration**: extended reference tone from 1.5s to 4s.
+- **App renamed**: "Metronome AI". Slug kept as "music-app" to avoid breaking the existing EAS dev build.
+- **Tap Tempo removed**: confusing UX, removed from hook, screen, action type, and Claude prompt.
+- **Metronome timing overhaul** (several iterations):
+  - v1: pool of 6 pre-created AudioPlayers, round-robin with `seekTo(0); play()` — seekTo unreliable on finished players, caused missed beats
+  - v2: play-and-replace pool — play fresh pre-created player, async-replace slot after 300ms — generation counter guards against async race creating duplicate players
+  - v3 (final): **pre-rendered click track** — `generateClickTrack()` bakes all clicks at exact PCM sample offsets into a WAV file, played with `loop: true`. Beat position derived by polling `player.currentTime` at 16ms. Perfect timing because the audio engine drives the clock, not JS timers.
+- **Ghost beats fix**: generation counter (`startGenRef`) increments on both start and stop — pending `setTimeout` beats from before the stop check the counter and bail out.
+- **Multiple metronomes fix**: `startPlayer` is async (awaits file write); if called twice quickly, the first resolves after the second has already `stopPlayer()`'d — no guard meant both created players. Fixed by capturing generation at call time and bailing if superseded.
+
+### Pain points & fixes
+- `seekTo(0); play()` on expo-audio `AudioPlayer` is unreliable after playback finishes — player state doesn't reset cleanly → switched to pre-rendered track approach entirely
+- Slug rename ("music-app" → "metronome-ai") broke existing dev build connection ("no usable data found") → reverted slug, kept display name
+- `createAudioPlayer` second arg is `AudioPlayerOptions` (object with `updateInterval`), not a bare number → fixed TypeScript error
+- Multiple async `startPlayer` calls racing: `stopPlayer()` can't stop a player that hasn't been created yet (still awaiting URI) → generation counter pattern
+
+### Key architectural decision: pre-rendered click track
+Native metronome apps use AVAudioEngine to schedule audio at hardware sample accuracy. In Expo managed workflow (no native modules), the equivalent is baking clicks into a WAV at exact sample offsets and playing with `loop: true`. The audio engine handles timing — no JS `setTimeout` involved. This gives near-native quality timing within managed Expo.
+
+### What's next
+- Haptic feedback on each beat
+- Chromatic tuner (mic input → FFT pitch detection)
+- App Store submission prep
+- Consider `expo prebuild` + AVAudioEngine native module if timing needs further improvement
+
+---
+
+## Session 3 — Production prep: stop bug, API key security, screenshots
+**Date:** 2026-06-05
+
+### What we built / changed
+- **Stop button fix**: pressing Stop while `startPlayer` was mid-async-await would fail silently (`playerRef` not yet set), then the await would complete and create a player anyway. Fixed by incrementing `startGenRef.current` in the stop path of `toggle()` — same generation counter already used for BPM changes now also cancels in-flight starts on stop.
+- **`pause()` before `remove()`**: looping `AVAudioPlayer` on iOS doesn't reliably halt on `remove()` alone — added `pause()` first in `stopPlayer`.
+- **Cloudflare Worker API proxy**: Anthropic API key moved out of the app entirely. Worker at `yellow-king-5c2b.skandavivek.workers.dev` proxies POST requests to Anthropic with the key stored as a Cloudflare secret. App now calls the Worker with no auth headers. Set Anthropic monthly spend limit as additional protection.
+- **API key removed from app**: `.env` cleared, `useCommandParser` no longer reads `EXPO_PUBLIC_ANTHROPIC_API_KEY`, `parseCommand()` no longer takes an `apiKey` parameter.
+- **App Store screenshots**: added 1179×2556 PNG screenshots (native iPhone 14 resolution) to `assets/screenshots/`. Valid for App Store Connect 6.1" slot. README updated with screenshots.
+
+### Pain points & fixes
+- API key was accidentally exposed in chat when `.env` was read aloud — immediately flagged, key revoked, new key created and added to Cloudflare Worker secret only
+- Stop button failure was a subtle async race: `stopPlayer()` is synchronous but `startPlayer` is async, so by the time Stop is pressed, `playerRef` might still be null
+
+### Key architectural note: API key security
+For any app shipping to the App Store that calls a paid API: never put the key in the bundle. A Cloudflare Worker proxy is the simplest solution — 25 lines of JS, free tier covers personal use, key lives only in Cloudflare's encrypted secrets store.
+
+### What's next
+- `eas build --profile production --platform ios`
+- Create app in App Store Connect, write privacy policy
+- `eas submit --platform ios`
+- Apple Review submission

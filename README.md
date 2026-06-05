@@ -1,8 +1,14 @@
-# MusicApp — Voice-Controlled Metronome + Tuner
+# Metronome AI — Voice-Controlled Metronome + Tuner
 
 A minimal iOS app for musicians. Control a metronome and reference tone player entirely by voice using AI.
 
-**"Set BPM to 80"** · **"Give me a C"** · **"Speed up a bit"** · **"Play A flat 3"**
+**"Set BPM to 80"** · **"Give me a C"** · **"Speed up a bit"** · **"Three four"** · **"Play A flat 3"**
+
+<p align="center">
+  <img src="assets/screenshots/metronome.png" width="280" alt="Metronome screen" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="assets/screenshots/tuner.png" width="280" alt="Tuner screen" />
+</p>
 
 ---
 

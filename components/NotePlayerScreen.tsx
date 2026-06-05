@@ -17,6 +17,7 @@ export function NotePlayerScreen() {
       case 'set_note':
         setNote(action.note as NoteName);
         setOctave(action.octave);
+        playNote(action.note as NoteName, action.octave);
         break;
       case 'play_note':
         playNote();

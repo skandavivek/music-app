@@ -34,9 +34,28 @@ Each trace file should capture: user messages, assistant responses, key decision
 Claude cannot detect session end automatically — this must be user-triggered.
 
 ## Current state
-- Expo SDK 54, React Native 0.81.5
-- expo-av for audio (programmatic WAV tone generation)
-- expo-file-system (classic API, not the new class-based one from SDK 56+)
+- Expo SDK 56, React Native 0.85.3
+- expo-audio (NOT expo-av — removed in SDK 56) for all audio playback
+- expo-file-system/legacy (classic API — the new class-based API is in the main import)
+- expo-speech-recognition for voice input (requires dev build, not Expo Go)
+- expo-dev-client installed; build via EAS
 - Claude Haiku via direct fetch for voice command parsing
-- expo-splash-screen must call hideAsync() in App useEffect
+- App name: "Metronome AI" (slug stays "music-app" to match existing EAS dev build)
 - npm install must be run from ~/music-app (Linux fs), not /mnt/c/
+
+## Metronome architecture (as of Session 2)
+- Audio timing: pre-rendered WAV click track (`generateClickTrack`) played with `loop: true`
+  - Clicks baked at exact sample offsets — no JS timer jitter
+  - Beat position derived by polling `player.currentTime` every 16ms
+  - Track cached by BPM + time sig key (up to 8 entries)
+  - BPM/timeSig changes: 150ms debounce → regenerate track
+  - Async race condition guard: `startGenRef` generation counter prevents stale async calls creating duplicate players
+- Time signatures: 1/4–6/4 and 1/8–6/8, accent click on beat 1
+- Voice flow: mic → speech ends → auto-submit (no Go button) → Claude → action → auto-starts metronome
+- Stop fix: `toggle()` stop path increments `startGenRef.current` to cancel any in-flight `startPlayer` async call; `stopPlayer` calls `pause()` then `remove()`
+
+## API key
+- Anthropic key is NOT in the app — lives in Cloudflare Worker secret only
+- Worker URL: https://yellow-king-5c2b.skandavivek.workers.dev
+- `parseCommand()` takes no apiKey param; `useCommandParser` has no API_KEY constant
+- Set a monthly spend limit on console.anthropic.com as backup

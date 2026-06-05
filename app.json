@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "music-app",
+    "name": "Metronome AI",
     "slug": "music-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.skandavivek.musicapp",
+      "bundleIdentifier": "com.skandavivek.metronomeai",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Used to control the metronome and tuner with your voice.",
         "NSMicrophoneUsageDescription": "Used to listen to your voice commands.",

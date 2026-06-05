@@ -43,7 +43,90 @@ function buildWav(samples: Float32Array, sampleRate = 44100): ArrayBuffer {
   return buffer;
 }
 
-export function generateTone(frequency: number, duration = 1.5, sampleRate = 44100): ArrayBuffer {
+async function wavToFileUri(wav: ArrayBuffer, filename: string): Promise<string> {
+  const uri = FileSystem.cacheDirectory + filename;
+  await FileSystem.writeAsStringAsync(uri, arrayBufferToBase64(wav), {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return uri;
+}
+
+// ── raw sample helpers ──────────────────────────────────────────────────────
+
+function clickSamples(sampleRate = 44100): Float32Array {
+  const n = Math.floor(sampleRate * 0.04);
+  const s = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / sampleRate;
+    s[i] = 0.9 * Math.sin(2 * Math.PI * 1200 * t) * Math.exp(-t * 80);
+  }
+  return s;
+}
+
+function accentSamples(sampleRate = 44100): Float32Array {
+  const n = Math.floor(sampleRate * 0.05);
+  const s = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / sampleRate;
+    s[i] = 1.0 * Math.sin(2 * Math.PI * 1800 * t) * Math.exp(-t * 60);
+  }
+  return s;
+}
+
+// ── click track ─────────────────────────────────────────────────────────────
+
+export function generateClickTrack(
+  bpm: number,
+  timeSig: { num: number; den: 4 | 8 },
+  measures = 2,
+  sampleRate = 44100,
+): ArrayBuffer {
+  const intervalMs = timeSig.den === 8 ? 30000 / bpm : 60000 / bpm;
+  const intervalSamples = Math.round((intervalMs / 1000) * sampleRate);
+  const totalBeats = measures * timeSig.num;
+  const totalSamples = intervalSamples * totalBeats;
+
+  const track = new Float32Array(totalSamples);
+  const normal = clickSamples(sampleRate);
+  const accent = accentSamples(sampleRate);
+
+  for (let b = 0; b < totalBeats; b++) {
+    const start = b * intervalSamples;
+    const src = b % timeSig.num === 0 ? accent : normal;
+    for (let i = 0; i < src.length && start + i < totalSamples; i++) {
+      track[start + i] += src[i];
+    }
+  }
+
+  return buildWav(track, sampleRate);
+}
+
+const trackCache = new Map<string, string>();
+const trackCacheKeys: string[] = [];
+const MAX_TRACK_CACHE = 8;
+
+export async function getClickTrackUri(
+  bpm: number,
+  timeSig: { num: number; den: 4 | 8 },
+): Promise<string> {
+  const key = `${bpm}_${timeSig.num}_${timeSig.den}`;
+  if (trackCache.has(key)) return trackCache.get(key)!;
+
+  const wav = generateClickTrack(bpm, timeSig);
+  const uri = await wavToFileUri(wav, `track_${key}.wav`);
+
+  trackCache.set(key, uri);
+  trackCacheKeys.push(key);
+  if (trackCacheKeys.length > MAX_TRACK_CACHE) {
+    trackCache.delete(trackCacheKeys.shift()!);
+  }
+
+  return uri;
+}
+
+// ── tones ────────────────────────────────────────────────────────────────────
+
+export function generateTone(frequency: number, duration = 4, sampleRate = 44100): ArrayBuffer {
   const numSamples = Math.floor(sampleRate * duration);
   const samples = new Float32Array(numSamples);
   const fadeSamples = Math.floor(0.02 * sampleRate);
@@ -58,35 +141,7 @@ export function generateTone(frequency: number, duration = 1.5, sampleRate = 441
   return buildWav(samples, sampleRate);
 }
 
-export function generateClick(sampleRate = 44100): ArrayBuffer {
-  const numSamples = Math.floor(sampleRate * 0.04);
-  const samples = new Float32Array(numSamples);
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    samples[i] = 0.9 * Math.sin(2 * Math.PI * 1200 * t) * Math.exp(-t * 80);
-  }
-  return buildWav(samples, sampleRate);
-}
-
-async function wavToFileUri(wav: ArrayBuffer, filename: string): Promise<string> {
-  const uri = FileSystem.cacheDirectory + filename;
-  await FileSystem.writeAsStringAsync(uri, arrayBufferToBase64(wav), {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  return uri;
-}
-
-let clickUri: string | null = null;
 const noteUriCache: Record<string, string> = {};
-
-export async function initAudio() {
-  await setAudioModeAsync({ playsInSilentMode: true });
-}
-
-export async function getClickUri(): Promise<string> {
-  if (!clickUri) clickUri = await wavToFileUri(generateClick(), 'metronome_click.wav');
-  return clickUri;
-}
 
 export async function getNoteUri(frequency: number, key: string): Promise<string> {
   if (!noteUriCache[key])
@@ -97,11 +152,11 @@ export async function getNoteUri(frequency: number, key: string): Promise<string
 export async function playSound(uri: string): Promise<void> {
   const player = createAudioPlayer({ uri });
   player.play();
-  // poll for completion then release
   const check = setInterval(() => {
-    if (!player.playing) {
-      clearInterval(check);
-      player.remove();
-    }
+    if (!player.playing) { clearInterval(check); player.remove(); }
   }, 100);
+}
+
+export async function initAudio() {
+  await setAudioModeAsync({ playsInSilentMode: true });
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, TextInput, TouchableOpacity, Text, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform, Animated,
@@ -25,6 +25,7 @@ export function CommandInput({ onSubmit, loading, error, placeholder }: Props) {
   const [transcript, setTranscript] = useState('');
   const [speechAvailable, setSpeechAvailable] = useState(false);
   const pulseAnim = useState(new Animated.Value(1))[0];
+  const transcriptRef = useRef('');
 
   useEffect(() => {
     try {
@@ -50,13 +51,24 @@ export function CommandInput({ onSubmit, loading, error, placeholder }: Props) {
   }, [listening]);
 
   useSpeechRecognitionEvent('start', () => setListening(true));
-  useSpeechRecognitionEvent('end', () => setListening(false));
+  useSpeechRecognitionEvent('end', () => {
+    setListening(false);
+    // fallback: if isFinal never fired, submit whatever we heard
+    const t = transcriptRef.current;
+    if (t) {
+      transcriptRef.current = '';
+      setTranscript('');
+      onSubmit(t);
+    }
+  });
   useSpeechRecognitionEvent('result', (event: any) => {
     const t = event.results[0]?.transcript ?? '';
     setTranscript(t);
+    transcriptRef.current = t;
     if (event.isFinal && t) {
-      onSubmit(t);
+      transcriptRef.current = '';
       setTranscript('');
+      onSubmit(t);
     }
   });
   useSpeechRecognitionEvent('error', () => setListening(false));
@@ -111,14 +123,6 @@ export function CommandInput({ onSubmit, loading, error, placeholder }: Props) {
             onSubmitEditing={handleSubmitText}
             editable={!loading && !listening}
           />
-
-          <TouchableOpacity
-            style={[styles.goBtn, (loading || listening) && styles.btnDisabled]}
-            onPress={handleSubmitText}
-            disabled={loading || listening}
-          >
-            <Text style={styles.goBtnText}>Go</Text>
-          </TouchableOpacity>
         </View>
 
         {!speechAvailable && (
@@ -166,16 +170,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  goBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-    minWidth: 52,
-    alignItems: 'center',
-  },
-  btnDisabled: { opacity: 0.4 },
-  goBtnText: { color: colors.text, fontWeight: '600', fontSize: 15 },
   error: { color: colors.danger, fontSize: 13, marginTop: spacing.sm },
   transcript: { color: colors.accentLight, fontSize: 13, marginTop: spacing.sm, fontStyle: 'italic' },
   hint: { color: colors.textSecondary, fontSize: 11, marginTop: spacing.xs },
