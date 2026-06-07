@@ -7,13 +7,15 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.skandavivek.metronomeai",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.skandavivek.musicapp",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Used to control the metronome and tuner with your voice.",
         "NSMicrophoneUsageDescription": "Used to listen to your voice commands.",
+        "NSPhotoLibraryUsageDescription": "This app does not use your photo library.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "4"
     },
     "android": {
       "adaptiveIcon": {

@@ -295,3 +295,35 @@ For any app shipping to the App Store that calls a paid API: never put the key i
 - Create app in App Store Connect, write privacy policy
 - `eas submit --platform ios`
 - Apple Review submission
+
+---
+
+## Session 4 — App Store submission
+**Date:** 2026-06-05
+
+### What we built / changed
+- **App renamed in App Store Connect**: "AI Metronome & Tuner" (display name "Metronome AI" was already taken on the App Store)
+- **Bundle ID fixed**: `app.json` had drifted to `com.skandavivek.metronomeai` — reverted to `com.skandavivek.musicapp` to match the registered Apple Developer certificate from the dev build
+- **Screenshots resized**: iPhone 15 screenshots (1179×2556) scaled to 1284×2778 (iPhone 12 Pro Max slot) using Pillow
+- **`supportsTablet: false`**: disabled tablet support to remove the mandatory iPad 13" screenshot requirement (app is not optimized for iPad)
+- **NSPhotoLibraryUsageDescription added**: Apple rejected build 2 with ITMS-90683 — a dependency references the photo library API even though the app doesn't use it; added purpose string to satisfy the requirement
+- **App Store Connect setup**: category (Music), age rating (4+, all No), pricing (Free), content rights, privacy policy URL, support URL, keywords, subtitle, description
+- **App Privacy questionnaire**: "Data Not Collected" — accurate since Cloudflare Worker doesn't log or store commands
+- **Submitted for Apple Review**: build 4, version 1.0.0
+
+### Pain points & fixes
+- Build 2 rejected: missing `NSPhotoLibraryUsageDescription` — added to `infoPlist` in `app.json`, rebuilt as build 3
+- `supportsTablet: true` required an iPad 13" screenshot (2048×2732) — resized screenshot looked stretched → disabled tablet support instead, rebuilt as build 4
+- App name "Metronome AI" already taken on App Store → used "AI Metronome & Tuner" as the App Store listing name (home screen still shows "Metronome AI" via `app.json`)
+- SKU: just an internal Apple identifier, set to `metronome-ai-001`
+- Privacy policy URL: used raw GitHub URL (`github.com/skandavivek/music-app/blob/master/PRIVACY.md`)
+
+### Key lessons
+- Always set `supportsTablet: false` unless the app is actually designed for iPad — otherwise Apple requires iPad screenshots
+- Apple rejects binaries (not just at review) for missing Info.plist purpose strings from transitive dependencies — check all `NS*UsageDescription` keys before submitting
+- App Store display name and `app.json` `"name"` are independent — Store listing can differ from home screen label
+
+### What's next
+- Wait for Apple Review (1-3 days)
+- If approved: monitor for crashes via Xcode Organizer / EAS
+- Future: haptic feedback, chromatic tuner, voice input polish

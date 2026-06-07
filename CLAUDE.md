@@ -59,3 +59,10 @@ Claude cannot detect session end automatically — this must be user-triggered.
 - Worker URL: https://yellow-king-5c2b.skandavivek.workers.dev
 - `parseCommand()` takes no apiKey param; `useCommandParser` has no API_KEY constant
 - Set a monthly spend limit on console.anthropic.com as backup
+
+## GitHub push checklist
+**Before every `git push`, verify:**
+1. No API keys or secrets in any staged file (`git diff --cached | grep -i key`)
+2. `.env` is gitignored and NOT in `git status` tracked files
+3. No tokens embedded in git remote URL (`git remote -v` — should not contain `ghp_` or similar)
+4. `claude-traces/` entries are scrubbed of any keys accidentally read aloud during sessions
