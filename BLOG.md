@@ -327,3 +327,23 @@ For any app shipping to the App Store that calls a paid API: never put the key i
 - Wait for Apple Review (1-3 days)
 - If approved: monitor for crashes via Xcode Organizer / EAS
 - Future: haptic feedback, chromatic tuner, voice input polish
+
+---
+
+## Session 5 — App Store approval + v1.1 planning
+**Date:** 2026-06-10
+
+### What we built / changed
+- Nothing shipped yet — this session was planning only
+
+### What happened
+- **App approved by Apple** — "AI Metronome & Tuner" v1.0.0 is live on the App Store
+- Identified two improvements for v1.1:
+  1. **Increase click volume** — users want louder output
+  2. **Background audio** — metronome should keep playing when the screen locks
+
+### What's next
+- Append session trace
+- Implement volume increase (WAV amplitude or `player.volume`)
+- Add `"audio"` to `UIBackgroundModes` in `infoPlist` (`app.json`) for locked-screen playback
+- New EAS production build + App Store update submission for v1.1
